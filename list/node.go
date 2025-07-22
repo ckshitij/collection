@@ -1,35 +1,23 @@
 package list
 
 type Node[T any] struct {
-	element  T
-	previous *Node[T]
-	next     *Node[T]
+	element T
+	prev    *Node[T]
+	next    *Node[T]
 }
 
 func NewNode[T any](element T) *Node[T] {
-	return &Node[T]{
-		element:  element,
-		previous: nil,
-		next:     nil,
-	}
+	return &Node[T]{element: element}
 }
 
-func (nn *Node[T]) Element() T {
-	return nn.element
+func (n *Node[T]) Element() T {
+	return n.element
 }
 
-func (nn *Node[T]) Next() *Node[T] {
-	return nn.next
+func (n *Node[T]) Next() *Node[T] {
+	return n.next
 }
 
-func (nn *Node[T]) Prev() *Node[T] {
-	return nn.previous
-}
-
-func (nn *Node[T]) SetNext(next *Node[T]) {
-	nn.next = next
-}
-
-func (nn *Node[T]) SetPrevious(previous *Node[T]) {
-	nn.previous = previous
+func (n *Node[T]) Prev() *Node[T] {
+	return n.prev
 }

@@ -20,7 +20,7 @@ func TestNewNode(t *testing.T) {
 func TestSetNext(t *testing.T) {
 	node1 := NewNode(1)
 	node2 := NewNode(2)
-	node1.SetNext(node2)
+	node1.next = node2
 
 	if node1.Next() != node2 {
 		t.Errorf("Expected node1's next to be node2, got %v", node1.Next())
@@ -30,7 +30,7 @@ func TestSetNext(t *testing.T) {
 func TestSetPrevious(t *testing.T) {
 	node1 := NewNode(1)
 	node2 := NewNode(2)
-	node1.SetPrevious(node2)
+	node1.prev = node2
 
 	if node1.Prev() != node2 {
 		t.Errorf("Expected node1's previous to be node2, got %v", node1.Prev())
@@ -42,10 +42,10 @@ func TestChainedNodes(t *testing.T) {
 	node2 := NewNode(2)
 	node3 := NewNode(3)
 
-	node1.SetNext(node2)
-	node2.SetPrevious(node1)
-	node2.SetNext(node3)
-	node3.SetPrevious(node2)
+	node1.next = node2
+	node2.prev = node1
+	node2.next = node3
+	node3.prev = node2
 
 	if node1.Next() != node2 {
 		t.Errorf("Expected node1's next to be node2, got %v", node1.Next())
