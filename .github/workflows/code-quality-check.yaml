@@ -55,3 +55,6 @@ jobs:
 
       - name: Run govulncheck
         run: govulncheck ./...
+
+      - name: Run test coverage
+        run: go test -v -coverprofile=coverage.out ./...

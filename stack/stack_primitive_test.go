@@ -93,6 +93,6 @@ func TestStack_TopOnEmpty(t *testing.T) {
 func TestStack_Size(t *testing.T) {
 	st := NewStringStack("hello", "world")
 	assert.Equal(t, 2, st.Size())
-	st.Pop()
+	_ = st.Pop()
 	assert.Equal(t, 1, st.Size())
 }
