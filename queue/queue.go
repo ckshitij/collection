@@ -62,3 +62,8 @@ func (q *Queue[T]) Back() T {
 func (q *Queue[T]) Size() int {
 	return q.head.Len()
 }
+
+// Clear removes all elements from the queue.
+func (q *Queue[T]) Clear() {
+	q.head.Clear()
+}

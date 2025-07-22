@@ -73,3 +73,12 @@ func TestQueueBack(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 60, q.Back()) // Back should not change after dequeue
 }
+
+func TestQueue_Clear(t *testing.T) {
+	q := NewIntQueue(1, 2, 3)
+	assert.Equal(t, 3, q.Size())
+
+	q.Clear()
+	assert.Equal(t, 0, q.Size())
+	assert.True(t, q.IsEmpty())
+}
