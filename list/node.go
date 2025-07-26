@@ -45,9 +45,3 @@ func (n *Node[T]) setPrev(prev *Node[T]) {
 	defer n.mu.Unlock()
 	n.prev = prev
 }
-
-func (n *Node[T]) setElement(element T) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.element = element
-}
