@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,4 +82,55 @@ func TestQueue_Clear(t *testing.T) {
 	q.Clear()
 	assert.Equal(t, 0, q.Size())
 	assert.True(t, q.IsEmpty())
+}
+
+func TestQueueConcurrentAccess(t *testing.T) {
+	q := NewQueue[int]()
+	var wg sync.WaitGroup
+
+	numGoroutines := 20
+	opsPerGoroutine := 1000
+
+	// Concurrent Enqueue
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(base int) {
+			defer wg.Done()
+			for j := 0; j < opsPerGoroutine; j++ {
+				q.Enqueue(base*opsPerGoroutine + j)
+			}
+		}(i)
+	}
+
+	// Concurrent Dequeue
+	for i := 0; i < numGoroutines/2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < opsPerGoroutine/2; j++ {
+				_ = q.Dequeue() // ignore error
+			}
+		}()
+	}
+
+	// Concurrent Size/Front/Back calls
+	for range numGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = q.Size()
+			_ = q.Front()
+			_ = q.Back()
+		}()
+	}
+
+	wg.Wait()
+
+	// Final assertion: size should be >= 0
+	require.GreaterOrEqual(t, q.Size(), 0)
+
+	if !q.IsEmpty() {
+		_ = q.Front()
+		_ = q.Back()
+	}
 }

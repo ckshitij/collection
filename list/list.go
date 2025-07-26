@@ -18,24 +18,18 @@ var (
 	ErrOutOfBound       = errors.New("position out of bounds")
 )
 
-// Create a new list with the initializer element
 func NewList[T any]() *List[T] {
-	return &List[T]{
-		head: nil,
-		tail: nil,
-		size: 0,
-	}
+	return &List[T]{}
 }
 
-// insert element in the beginning of the list
 func (list *List[T]) PushFront(element T) {
 	list.mu.Lock()
 	defer list.mu.Unlock()
 
 	newNode := NewNode(element)
 	if list.head != nil {
-		newNode.next = list.head
-		list.head.prev = newNode
+		newNode.setNext(list.head)
+		list.head.setPrev(newNode)
 	} else {
 		list.tail = newNode
 	}
@@ -43,15 +37,14 @@ func (list *List[T]) PushFront(element T) {
 	list.size++
 }
 
-// insert element in the end of the list
 func (list *List[T]) PushBack(element T) {
 	list.mu.Lock()
 	defer list.mu.Unlock()
 
 	newNode := NewNode(element)
 	if list.tail != nil {
-		newNode.prev = list.tail
-		list.tail.next = newNode
+		newNode.setPrev(list.tail)
+		list.tail.setNext(newNode)
 	} else {
 		list.head = newNode
 	}
@@ -59,7 +52,6 @@ func (list *List[T]) PushBack(element T) {
 	list.size++
 }
 
-// Remove element from the beginning of the list
 func (list *List[T]) PopFront() {
 	list.mu.Lock()
 	defer list.mu.Unlock()
@@ -67,57 +59,51 @@ func (list *List[T]) PopFront() {
 	if list.head == nil {
 		return
 	}
-	list.head = list.head.Next()
+	next := list.head.Next()
+	list.head = next
 	if list.head == nil {
 		list.tail = nil
 	} else {
-		list.head.prev = nil
+		list.head.setPrev(nil)
 	}
 	list.size--
 }
 
-// Remove element from the end of the list
 func (list *List[T]) PopBack() {
 	list.mu.Lock()
 	defer list.mu.Unlock()
 
-	if list.head == nil {
+	if list.tail == nil {
 		return
 	}
-	list.tail = list.tail.Prev()
+	prev := list.tail.Prev()
+	list.tail = prev
 	if list.tail == nil {
 		list.head = nil
 	} else {
-		list.tail.next = (nil)
+		list.tail.setNext(nil)
 	}
 	list.size--
 }
 
-// Get element from the beginning of the list
 func (list *List[T]) Front() *Node[T] {
 	list.mu.RLock()
 	defer list.mu.RUnlock()
-
 	return list.head
 }
 
-// Get element from the back of the list
 func (list *List[T]) Back() *Node[T] {
 	list.mu.RLock()
 	defer list.mu.RUnlock()
-
 	return list.tail
 }
 
-// Return the size of list
 func (list *List[T]) Len() int {
 	list.mu.RLock()
 	defer list.mu.RUnlock()
-
 	return list.size
 }
 
-// InsertAtPosition inserts a node at a specific position in the list
 func (list *List[T]) InsertAtPosition(data T, position int) error {
 	list.mu.Lock()
 	defer list.mu.Unlock()
@@ -139,13 +125,15 @@ func (list *List[T]) InsertAtPosition(data T, position int) error {
 		}
 		current = current.Next()
 	}
+
 	if current == nil || current.Next() == nil {
 		list.pushBackNode(newNode)
 	} else {
-		newNode.next = (current.Next())
-		newNode.prev = (current)
-		current.Next().prev = (newNode)
-		current.next = (newNode)
+		next := current.Next()
+		newNode.setNext(next)
+		newNode.setPrev(current)
+		next.setPrev(newNode)
+		current.setNext(newNode)
 		list.size++
 	}
 	return nil
@@ -153,22 +141,48 @@ func (list *List[T]) InsertAtPosition(data T, position int) error {
 
 func (list *List[T]) IterateForward(action func(index int, element T)) {
 	list.mu.RLock()
-	defer list.mu.RUnlock()
-
-	itr := list.head
+	current := list.head
 	index := 0
-	for itr != nil {
-		action(index, itr.Element())
-		itr = itr.Next()
+	list.mu.RUnlock()
+
+	for current != nil {
+		element := current.Element()
+		next := current.Next()
+		action(index, element)
+		current = next
 		index++
 	}
 }
 
-// Internal methods (non-locked, used within locked context)
+func (list *List[T]) IterateBackward(action func(index int, element T)) {
+	list.mu.RLock()
+	current := list.tail
+	index := list.size - 1
+	list.mu.RUnlock()
+
+	for current != nil {
+		element := current.Element()
+		prev := current.Prev()
+		action(index, element)
+		current = prev
+		index--
+	}
+}
+
+func (list *List[T]) Clear() {
+	list.mu.Lock()
+	defer list.mu.Unlock()
+	list.head = nil
+	list.tail = nil
+	list.size = 0
+}
+
+// --- internal helpers (must be called under list.mu.Lock()) ---
+
 func (list *List[T]) pushFrontNode(node *Node[T]) {
 	if list.head != nil {
-		node.next = (list.head)
-		list.head.prev = (node)
+		node.setNext(list.head)
+		list.head.setPrev(node)
 	} else {
 		list.tail = node
 	}
@@ -178,33 +192,11 @@ func (list *List[T]) pushFrontNode(node *Node[T]) {
 
 func (list *List[T]) pushBackNode(node *Node[T]) {
 	if list.tail != nil {
-		node.prev = (list.tail)
-		list.tail.next = (node)
+		node.setPrev(list.tail)
+		list.tail.setNext(node)
 	} else {
 		list.head = node
 	}
 	list.tail = node
 	list.size++
-}
-
-func (list *List[T]) IterateBackward(action func(index int, element T)) {
-	list.mu.RLock()
-	defer list.mu.RUnlock()
-
-	itr := list.tail
-	index := list.size - 1
-	for itr != nil {
-		action(index, itr.Element())
-		itr = itr.Prev()
-		index--
-	}
-}
-
-func (list *List[T]) Clear() {
-	list.mu.Lock()
-	defer list.mu.Unlock()
-
-	list.head = nil
-	list.tail = nil
-	list.size = 0
 }

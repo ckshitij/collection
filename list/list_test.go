@@ -1,6 +1,7 @@
 package list
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -236,4 +237,90 @@ func TestIterateBackward(t *testing.T) {
 		{1, 100},
 		{0, 42},
 	}, results)
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	l := NewList[int]()
+	wg := sync.WaitGroup{}
+	numGoroutines := 10
+	numOps := 1000
+
+	// Concurrent PushFront
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(base int) {
+			defer wg.Done()
+			for j := 0; j < numOps; j++ {
+				l.PushFront(base*numOps + j)
+			}
+		}(i)
+	}
+
+	// Concurrent PushBack
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(base int) {
+			defer wg.Done()
+			for j := 0; j < numOps; j++ {
+				l.PushBack(base*numOps + j)
+			}
+		}(i)
+	}
+
+	// Concurrent PopFront
+	for i := 0; i < numGoroutines/2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numOps/2; j++ {
+				l.PopFront()
+			}
+		}()
+	}
+
+	// Concurrent PopBack
+	for i := 0; i < numGoroutines/2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numOps/2; j++ {
+				l.PopBack()
+			}
+		}()
+	}
+
+	// Concurrent IterateForward
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			l.IterateForward(func(index int, element int) {
+				_ = element // simulate read
+			})
+		}()
+	}
+
+	// Concurrent IterateBackward
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			l.IterateBackward(func(index int, element int) {
+				_ = element // simulate read
+			})
+		}()
+	}
+
+	wg.Wait()
+
+	// Final checks
+	require.Greater(t, l.Len(), 0)
+	head := l.Front()
+	if head != nil {
+		_ = head.Element()
+	}
+	tail := l.Back()
+	if tail != nil {
+		_ = tail.Element()
+	}
 }

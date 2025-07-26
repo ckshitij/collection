@@ -1,9 +1,11 @@
 package pq
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPriorityQueue(t *testing.T) {
@@ -176,4 +178,58 @@ func TestPriorityQueueEdgeCases(t *testing.T) {
 	assert.Equal(t, 7, pq.Pop())
 	assert.Equal(t, 7, pq.Pop())
 	assert.Equal(t, 0, pq.Size())
+}
+
+func TestPriorityQueue_ConcurrentAccess(t *testing.T) {
+	q := NewPriorityQueue[int](func(a, b int) bool {
+		return a > b
+	})
+
+	var wg sync.WaitGroup
+	numGoroutines := 10
+	opsPerGoroutine := 500
+
+	// Concurrent Push
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(base int) {
+			defer wg.Done()
+			for j := 0; j < opsPerGoroutine; j++ {
+				q.Push(base*opsPerGoroutine + j)
+			}
+		}(i)
+	}
+
+	// Concurrent Pop (some will pop while others are pushing)
+	for i := 0; i < numGoroutines/2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < opsPerGoroutine/2; j++ {
+				_ = q.Pop()
+			}
+		}()
+	}
+
+	// Concurrent Peek and Size checks
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = q.Peek()
+			_ = q.Size()
+			_ = q.Empty()
+		}()
+	}
+
+	wg.Wait()
+
+	// Final check: queue should still be valid
+	if !q.Empty() {
+		top, ok := q.Peek()
+		require.True(t, ok)
+		require.NotZero(t, top)
+	}
+
+	require.GreaterOrEqual(t, q.Size(), 0)
 }

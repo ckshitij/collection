@@ -1,6 +1,7 @@
 package stack
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -92,4 +93,54 @@ func TestGenericStack(t *testing.T) {
 	err := st.Pop()
 	require.NoError(t, err)
 	assert.Equal(t, customType{id: 1, name: "Alice"}, st.Top())
+}
+
+func TestStackConcurrentAccess(t *testing.T) {
+	stack := NewStack[int]()
+	var wg sync.WaitGroup
+
+	numGoroutines := 20
+	opsPerGoroutine := 1000
+
+	// Concurrent Push
+	for i := range numGoroutines {
+		wg.Add(1)
+		go func(base int) {
+			defer wg.Done()
+			for j := 0; j < opsPerGoroutine; j++ {
+				stack.Push(base*opsPerGoroutine + j)
+			}
+		}(i)
+	}
+
+	// Concurrent Pop (won't block on empty, just ignore errors)
+	for i := 0; i < numGoroutines/2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < opsPerGoroutine/2; j++ {
+				_ = stack.Pop()
+			}
+		}()
+	}
+
+	// Concurrent Top/Size/IsEmpty
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = stack.Top()
+			_ = stack.Size()
+			_ = stack.IsEmpty()
+		}()
+	}
+
+	wg.Wait()
+
+	// Final assertions
+	require.GreaterOrEqual(t, stack.Size(), 0)
+
+	if !stack.IsEmpty() {
+		_ = stack.Top()
+	}
 }
